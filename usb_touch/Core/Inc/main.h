@@ -54,7 +54,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void printf_p(const char *__restrict format, ... );
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -67,5 +67,3 @@ void Error_Handler(void);
 #endif
 
 #endif /* __MAIN_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

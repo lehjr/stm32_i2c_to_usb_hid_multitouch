@@ -16,9 +16,9 @@ enum{
 };
 
 #define SDA_PORT  GPIOB
-#define SDA_PIN   GPIO_PIN_7
+#define SDA_PIN   GPIO_PIN_6
 #define SCL_PORT  GPIOB
-#define SCL_PIN   GPIO_PIN_6
+#define SCL_PIN   GPIO_PIN_5
 
 #define SetSDA 	  SDA_PORT->BSRR = SDA_PIN
 #define ResSDA    (SDA_PORT->BSRR = (uint32_t)SDA_PIN << 16U)
@@ -259,6 +259,108 @@ uint8_t writeI2C(uint8_t id,uint8_t reg, uint8_t *dat, uint16_t len)
 
 		// reg
 		if (i2c_write(reg) == I2C_NOACK){
+			continue;
+		}
+		ret = I2C_ACK;
+		// data
+		for(i = 0; i < len; i++)
+		{
+			if(i2c_write(dat[i]) == I2C_NOACK)
+			{
+				//if failed, ret = 0
+				ret = I2C_NOACK;
+				break;
+			}
+		}
+		i2c_stop();
+	}
+	while((retryCount < 10) || (ret == I2C_NOACK));
+	delay1us(i2cTime);
+
+	return ret;
+}
+
+uint8_t read16I2C(uint8_t id, uint16_t reg, uint8_t *dat, uint16_t len)
+{
+	int i;
+	uint8_t retryCount = 0;
+	uint8_t ret=I2C_NOACK;
+	do
+	{
+		retryCount++;
+
+	// Stop
+		i2c_stop();
+		delay1us(i2cTime);
+
+	// Start
+		i2c_start();
+
+	// Slave ID
+		if(i2c_write(id) == I2C_NOACK)
+		{
+			continue;
+		}
+
+		// reg
+		i2c_write(reg >> 8);
+		if(i2c_write(reg & 0xFF) == I2C_NOACK)
+		{
+			continue;
+		}
+
+		i2c_stop();
+		delay1us(i2cTime);
+
+		// Start
+		i2c_start();
+
+		if (i2c_write(id | 0x01) == I2C_NOACK)
+		{
+			continue;
+		}
+
+		// data
+		for(i = 0; i < (len-1); i++)
+		{
+			dat[i] = i2c_read(0);
+		}
+
+		dat[i] = i2c_read(1);
+
+		i2c_stop();
+		ret = I2C_ACK;
+	} while((retryCount < 10) || (ret == I2C_NOACK));
+	delay1us(i2cTime);
+
+
+	return ret;
+}
+
+uint8_t write16I2C(uint8_t id, uint16_t reg, uint8_t *dat, uint16_t len)
+{
+	int i;
+	uint8_t retryCount = 0;
+	uint8_t ret=0;
+	do
+	{
+		ret = I2C_NOACK;
+		retryCount++;
+
+		i2c_stop();
+		delay1us(i2cTime);
+
+		i2c_start();
+
+		// id
+		if (i2c_write(id) == I2C_NOACK){
+			continue;
+		}
+
+		// reg
+		i2c_write(reg >> 8);
+		if(i2c_write(reg & 0xFF) == I2C_NOACK)
+		{
 			continue;
 		}
 		ret = I2C_ACK;

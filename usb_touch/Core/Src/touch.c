@@ -15,6 +15,14 @@
 
 #define TOUCH_I2C_ID   FT5316_I2C_ID
 
+#define GOODIX_I2C_ADDR_BA  	0xBA
+#define GOODIX_READ_COORD_ADDR	0x814E
+#define GOODIX_REG_FW_VER       0x8144
+#define GOODIX_REG_ID           0x8140
+#define GT_REG_CFG  			0x8047
+
+#define GOODIX_CONFIG_911_LENGTH  186
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
 extern uint8_t USBD_HID_SendReport (USBD_HandleTypeDef  *pdev, uint8_t *report, uint16_t len);
 
@@ -122,21 +130,50 @@ uint8_t *getTouchQualityKeyPtr()
 //interrupt Pen IRQ
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if(GPIO_Pin == GPIO_PIN_9)
+	if(GPIO_Pin == GPIO_PIN_7)
 	{
 		touchIrq = 1;
 	}
 }
 
+uint32_t gt911_productID(void)
+{
+	uint32_t res;
+	uint8_t buf [4];
+
+	read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_REG_ID, buf, 4);
+	res = buf [3] | (buf [2] << 8) | (buf [1] << 16) | (buf [0] << 24);
+	return res;
+}
+
+uint_fast8_t gt911_calcChecksum(uint8_t * buf, uint_fast8_t len)
+{
+	uint_fast8_t ccsum = 0;
+	for (uint_fast8_t i = 0; i < len; i++) {
+		ccsum += buf [i];
+	}
+	//ccsum %= 256;
+	ccsum = (~ ccsum) + 1;
+	return ccsum & 0xFF;
+}
+
 void initTouch()
 {
 	//reset
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
-	HAL_Delay(10);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+	HAL_Delay(100);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+	HAL_Delay(100);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+	HAL_Delay(100);
+
+	uint8_t v = 0;
+	write16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, & v, 1);
+
+	uint8_t ver[2];
+	read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_REG_FW_VER, ver, 2);
+	printf_p("gt9xx FW ver.: %02x%02x, ", ver[1], ver[0]);
+	printf_p("id: %08x\r\n", gt911_productID());
 
 
 	multiTouch.count = 0;
@@ -151,7 +188,7 @@ void initTouch()
 void toucuProc()
 {
 	uint8_t point_num;
-	uint8_t i;
+	uint8_t i, j;
 	uint16_t x[max_point_num];
 	uint16_t y[max_point_num];
 
@@ -162,24 +199,44 @@ void toucuProc()
 	if(touchIrq)
 	{
 		touchIrq=0;
+		//printf_p("*\r\n");
+		//delay1us(1000);
 
-		readI2C(TOUCH_I2C_ID, 0x00, dat, 40);
+		//readI2C(TOUCH_I2C_ID, 0x00, dat, 40);
+		read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, dat, 1);
 		//HAL_I2C_Mem_Read(&hi2c1, TOUCH_I2C_ID, 0x00, I2C_MEMADD_SIZE_8BIT, (uint8_t *)dat, 40, 200);
 
 		//HAL_I2C_Master_Receive_DMA()
 		//device mode[6:4]
 		//0 Work Mode
 		//4 Factory Mode
-		if((dat[0] & 0x70) != 0)
+//		if((dat[0] & 0x70) != 0)
+//			return;
+
+
+
+		if (! (dat [0] >> 7))
 			return;
 
+//		printf_p("%d\r\n", dat[0]);
+
+
+
 		//Number of Touch points
-		point_num =  dat[2] & 0x0f;
+		point_num =  dat[0] & 0x0F;
+
+//		if (point_num)
+//			printf_p("point_num %d\r\n", point_num);
 
 		if(point_num > max_point_num)
 			point_num = max_point_num;
 
-		for(i = 0; i < point_num; i++)
+		uint8_t v = 0;
+		write16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, & v, 1);
+
+		read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, dat, 40);
+
+		for(i = 0, j = 0; i < point_num; i++, j += 8)
 		{
 			//03H [7:6] Event Flag - not used
 			// 0 : down
@@ -194,15 +251,21 @@ void toucuProc()
 			//05H [3:0] MSB of Touch Y Position in pixels [11:8]
 			//06H [7:0] LSB of Touch Y Position in pixels [7:0]
 
-			x[i] = (((uint16_t)dat[3+6*i]&0x0F)<<8)|dat[3+6*i+1];
-			y[i] = (((uint16_t)dat[3+6*i+2]&0x0F)<<8)|dat[3+6*i+3];
+//			x[i] = (((uint16_t)dat[3+6*i]&0x0F)<<8)|dat[3+6*i+1];
+//			y[i] = (((uint16_t)dat[3+6*i+2]&0x0F)<<8)|dat[3+6*i+3];
+//
+			id[i] = dat[j + 1];
 
-			id[i] = dat[5+6*i]>>4;
+			x[i] = (dat[j + 2] | dat[j + 3] << 8);
+			y[i] = (dat[j + 4] | dat[j + 5] << 8);
 
 			if(x[i] > 1024)
 				x[i] = 1024;
 			if(y[i] > 600)
 				y[i] = 600;
+
+			printf_p("%d: %d %d\r\n", i, x[i], y[i]);
+
 			x[i] = (x[i]*2048)/1024;// touch range ( 0 ~ 1024 ) to USB HID range (0 ~  2048)
 			y[i] = (y[i]*2048)/600; // touch range ( 0 ~ 1024 ) to USB HID range (0 ~  2048)
 
@@ -217,6 +280,8 @@ void toucuProc()
 				}
 
 			}
+
+
 
 		}
 		//input_sync();
