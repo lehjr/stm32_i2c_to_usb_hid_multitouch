@@ -29,8 +29,8 @@ extern uint8_t USBD_HID_SendReport (USBD_HandleTypeDef  *pdev, uint8_t *report, 
 static uint8_t touchIrq = 0;
 //static uint16_t oldX[max_point_num]={0,};
 //static uint16_t oldY[max_point_num]={0,};
-static uint16_t oldid[max_point_num];
-//static uint8_t p_point_num = 0;
+static uint16_t oldid[max_point_num] = { 0 };
+static uint8_t oldp = 0;
 
 
 //https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/touch-and-pen-support
@@ -81,7 +81,7 @@ void tpd_down(uint16_t x, uint16_t y, uint16_t p)
 	multiTouch.touch[multiTouch.id].width = 0x30; //width of contact
 	multiTouch.touch[multiTouch.id].height = 0x30;
 	multiTouch.id++;
-
+//	printf("down %d\n", p);
 }
 void tpd_up(uint16_t x, uint16_t y, uint16_t p)
 {
@@ -93,7 +93,7 @@ void tpd_up(uint16_t x, uint16_t y, uint16_t p)
 	multiTouch.touch[multiTouch.id].width = 0;
 	multiTouch.touch[multiTouch.id].height = 0;
 	multiTouch.id++;
-
+//	printf("up %d\n", p);
 }
 
 void input_sync()
@@ -196,11 +196,11 @@ void toucuProc()
 
 	uint8_t dat[100];
 
-	if(touchIrq)
+	//if(touchIrq)
 	{
 		touchIrq=0;
 		//printf_p("*\r\n");
-		//delay1us(1000);
+		delay1us(100);
 
 		//readI2C(TOUCH_I2C_ID, 0x00, dat, 40);
 		read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, dat, 1);
@@ -213,14 +213,10 @@ void toucuProc()
 //		if((dat[0] & 0x70) != 0)
 //			return;
 
-
-
 		if (! (dat [0] >> 7))
 			return;
 
 //		printf_p("%d\r\n", dat[0]);
-
-
 
 		//Number of Touch points
 		point_num =  dat[0] & 0x0F;
@@ -231,10 +227,10 @@ void toucuProc()
 		if(point_num > max_point_num)
 			point_num = max_point_num;
 
+		read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, dat, 40);
+
 		uint8_t v = 0;
 		write16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, & v, 1);
-
-		read16I2C(GOODIX_I2C_ADDR_BA, GOODIX_READ_COORD_ADDR, dat, 40);
 
 		for(i = 0, j = 0; i < point_num; i++, j += 8)
 		{
@@ -264,13 +260,12 @@ void toucuProc()
 			if(y[i] > 600)
 				y[i] = 600;
 
-			printf_p("%d: %d %d\r\n", i, x[i], y[i]);
+//			printf_p("%d: %d %d %d\r\n", i, x[i], y[i], id[i]);
 
 			x[i] = (x[i]*2048)/1024;// touch range ( 0 ~ 1024 ) to USB HID range (0 ~  2048)
 			y[i] = (y[i]*2048)/600; // touch range ( 0 ~ 1024 ) to USB HID range (0 ~  2048)
 
 			tpd_down(x[i], y[i], id[i]);
-
 
 			for(uint8_t c = 0; c < point_num; c++)
 			{
@@ -278,25 +273,22 @@ void toucuProc()
 				{
 					oldid[c]=255;
 				}
-
 			}
-
-
-
 		}
 		//input_sync();
 
-
-		for(i=0; i < point_num; i++)
+		for(i=0; i < oldp; i++)
 		{
 			if(oldid[i]!=255)
-			{
 					tpd_up(x[i], y[i], oldid[i]);
 
-			}
 			oldid[i] = id[i];
 		}
+
 		input_sync();
+
+		if (point_num)
+			oldp = point_num;
 
 		/*
 		input_sync();
@@ -311,7 +303,6 @@ void toucuProc()
 		}
 		input_sync();
 		*/
-
 
 		/*
 		if(point_num > 0)
@@ -348,6 +339,5 @@ void toucuProc()
 		}
 		p_point_num = point_num;
 		*/
-
 	}
 }
