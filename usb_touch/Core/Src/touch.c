@@ -208,16 +208,13 @@ void toucuProc()
 
 			tpd_down(x[i], y[i], id[i]);
 
-
 			for(uint8_t c = 0; c < point_num; c++)
 			{
 				if(id[i] == oldid[c])
 				{
 					oldid[c]=255;
 				}
-
 			}
-
 		}
 		//input_sync();
 
@@ -246,7 +243,6 @@ void toucuProc()
 		}
 		input_sync();
 		*/
-
 
 		/*
 		if(point_num > 0)
@@ -283,6 +279,5 @@ void toucuProc()
 		}
 		p_point_num = point_num;
 		*/
-
 	}
 }
