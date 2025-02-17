@@ -5,6 +5,7 @@
  *      Author: chand
  */
 #include "stm32f1xx_hal.h"
+#include "main.h"
 
 
 #define i2cTime 3
@@ -15,16 +16,11 @@ enum{
 	I2C_ACK
 };
 
-#define SDA_PORT  GPIOB
-#define SDA_PIN   GPIO_PIN_6
-#define SCL_PORT  GPIOB
-#define SCL_PIN   GPIO_PIN_5
-
-#define SetSDA 	  SDA_PORT->BSRR = SDA_PIN
-#define ResSDA    (SDA_PORT->BSRR = (uint32_t)SDA_PIN << 16U)
-#define GetSDA    HAL_GPIO_ReadPin(SDA_PORT, SDA_PIN)
-#define SetSCL    SCL_PORT->BSRR = SCL_PIN
-#define ResSCL    (SCL_PORT->BSRR = (uint32_t)SCL_PIN << 16U)
+#define SetSDA 	  TP_SDA_GPIO_Port->BSRR = TP_SDA_Pin
+#define ResSDA    (TP_SDA_GPIO_Port->BSRR = (uint32_t)TP_SDA_Pin << 16U)
+#define GetSDA    HAL_GPIO_ReadPin(TP_SDA_GPIO_Port, TP_SDA_Pin)
+#define SetSCL    TP_SCL_GPIO_Port->BSRR = TP_SCL_Pin
+#define ResSCL    (TP_SCL_GPIO_Port->BSRR = (uint32_t)TP_SCL_Pin << 16U)
 
 uint8_t bNoAck=0;
 
@@ -43,17 +39,17 @@ void delay1us(uint32_t udelay)
 void initI2C()
 {
 	GPIO_InitTypeDef GPIO_InitStruct;
-	GPIO_InitStruct.Pin = SDA_PIN;
+	GPIO_InitStruct.Pin = TP_SDA_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SDA_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(TP_SDA_GPIO_Port, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = SCL_PIN;
+	GPIO_InitStruct.Pin = TP_SCL_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SCL_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(TP_SCL_GPIO_Port, &GPIO_InitStruct);
 	SetSCL;
 	SetSDA;
  	HAL_Delay(100);
@@ -117,11 +113,11 @@ uint8_t i2c_write(uint8_t dat)
 	SetSCL;
 	delay1us(i2cTime);
 
-	GPIO_InitStruct.Pin = SDA_PIN;
+	GPIO_InitStruct.Pin = TP_SDA_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SDA_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(TP_SDA_GPIO_Port, &GPIO_InitStruct);
 
 	if (GetSDA)
 	{
@@ -132,11 +128,11 @@ uint8_t i2c_write(uint8_t dat)
 		ack = I2C_ACK;
 	}
 
-	GPIO_InitStruct.Pin = SDA_PIN;
+	GPIO_InitStruct.Pin = TP_SDA_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SDA_PORT, &GPIO_InitStruct);
+	HAL_GPIO_Init(TP_SDA_GPIO_Port, &GPIO_InitStruct);
 
 
 	return ack;

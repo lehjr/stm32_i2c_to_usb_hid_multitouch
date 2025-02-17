@@ -8,6 +8,7 @@
 #include "touch.h"
 #include "i2c.h"
 #include "usb_device.h"
+#include "main.h"
 
 #define max_point_num 5
 
@@ -81,7 +82,7 @@ void tpd_down(uint16_t x, uint16_t y, uint16_t p)
 	multiTouch.touch[multiTouch.id].width = 0x30; //width of contact
 	multiTouch.touch[multiTouch.id].height = 0x30;
 	multiTouch.id++;
-//	printf("down %d\n", p);
+	printf("down %d\n", p);
 }
 void tpd_up(uint16_t x, uint16_t y, uint16_t p)
 {
@@ -93,18 +94,18 @@ void tpd_up(uint16_t x, uint16_t y, uint16_t p)
 	multiTouch.touch[multiTouch.id].width = 0;
 	multiTouch.touch[multiTouch.id].height = 0;
 	multiTouch.id++;
-//	printf("up %d\n", p);
+	printf("up %d\n", p);
 }
 
 void input_sync()
 {
 	multiTouch.report = 0x01;
 	multiTouch.count++;
-	/*
+
 	for(int i=0;i<multiTouch.id;i++)
 	{
 		printf("\n[%d:%d] x : %d, y : %d, %d\n",multiTouch.id, multiTouch.touch[i].tip, multiTouch.touch[i].x,multiTouch.touch[i].y, multiTouch.count);
-	}*/
+	}
 	//HAL_UART_Transmit_IT(&huart3, (uint8_t*)&multiTouch, sizeof(multiTouch));
 	USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&multiTouch, sizeof(struct multiTouchHid_t));
 	multiTouch.id=0;
@@ -130,7 +131,7 @@ uint8_t *getTouchQualityKeyPtr()
 //interrupt Pen IRQ
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if(GPIO_Pin == GPIO_PIN_7)
+	if(GPIO_Pin == TP_INT_Pin)
 	{
 		touchIrq = 1;
 	}
@@ -160,11 +161,11 @@ uint_fast8_t gt911_calcChecksum(uint8_t * buf, uint_fast8_t len)
 void initTouch()
 {
 	//reset
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(TP_SCL_GPIO_Port, TP_SCL_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(TP_SCL_GPIO_Port, TP_SCL_Pin, GPIO_PIN_RESET);
 	HAL_Delay(100);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(TP_SCL_GPIO_Port, TP_SCL_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
 
 	uint8_t v = 0;
